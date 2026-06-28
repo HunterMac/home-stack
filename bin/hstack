@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Launcher for the hstack CLI. Resolves the repo (even when invoked through a
+# symlink in /usr/local/bin) and runs the TypeScript CLI with the vendored tsx.
+set -euo pipefail
+
+# Real path of this script -> repo/bin/hstack -> repo root.
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+REPO="$(cd "$(dirname "$SELF")/.." && pwd)"
+
+TSX="$REPO/node_modules/.bin/tsx"
+ENTRY="$REPO/src/cli.ts"
+
+if [[ ! -x "$TSX" ]]; then
+  echo "hstack: dependencies missing. Run 'npm install' in $REPO" >&2
+  exit 1
+fi
+
+# Default to the repo's config unless the user passed --config/-c or there is a
+# config in the current directory. Prevents accidentally creating a stray
+# home-stack.config.json when invoked from an arbitrary cwd.
+has_config=false
+for a in "$@"; do
+  [[ "$a" == "--config" || "$a" == "-c" ]] && has_config=true && break
+done
+if ! $has_config && [[ ! -f "home-stack.config.json" ]]; then
+  set -- --config "$REPO/home-stack.config.json" "$@"
+fi
+
+exec "$TSX" "$ENTRY" "$@"

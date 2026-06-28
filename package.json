@@ -7,14 +7,15 @@
     "node": ">=20"
   },
   "bin": {
-    "home-stack": "src/cli.ts"
+    "hstack": "bin/hstack"
   },
   "scripts": {
-    "home-stack": "tsx src/cli.ts",
+    "hstack": "tsx src/cli.ts",
     "setup": "tsx src/cli.ts setup",
     "backup": "tsx src/cli.ts backup",
     "restore": "tsx src/cli.ts restore",
     "status": "tsx src/cli.ts status",
+    "link-cli": "ln -sf \"$(pwd)/bin/hstack\" /usr/local/bin/hstack && echo 'linked /usr/local/bin/hstack'",
     "typecheck": "tsc --noEmit",
     "build": "tsc"
   },

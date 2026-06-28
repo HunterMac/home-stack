@@ -46,6 +46,6 @@ export async function restoreCommand(opts: RestoreOpts): Promise<void> {
   if (!opts.inPlace) {
     log.info(`files are under ${target}; review then copy into place, or use --in-place`);
   } else {
-    log.warn("restored in-place; restart the stack with: sudo npm run setup");
+    log.warn("restored in-place; restart the stack with: sudo hstack setup");
   }
 }

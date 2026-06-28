@@ -10,11 +10,13 @@ import { structureStep } from "../steps/structure.js";
 import { stackStep } from "../steps/stack.js";
 import { mdnsStep } from "../steps/mdns.js";
 import { backupStep } from "../steps/backup.js";
+import { cliLinkStep } from "../steps/clilink.js";
 
 export interface SetupOpts {
   config?: string;
   install?: string[];
   skipBackup?: boolean;
+  noLink?: boolean;
 }
 
 export async function setupCommand(opts: SetupOpts): Promise<void> {
@@ -47,6 +49,9 @@ export async function setupCommand(opts: SetupOpts): Promise<void> {
   if (!opts.skipBackup) {
     await backupStep(cfg, opts.config ?? "home-stack.config.json");
   }
+  if (!opts.noLink) {
+    cliLinkStep();
+  }
 
   log.step("Done");
   log.ok("setup converged. Reach services at:");
@@ -54,5 +59,6 @@ export async function setupCommand(opts: SetupOpts): Promise<void> {
   for (const svc of cfg.activeServices) {
     log.ok(`  ${scheme}://${svc.name}.${cfg.network.domainSuffix}`);
   }
-  log.info("add more apps with: sudo npm run home-stack -- install <name>  (see: list)");
+  if (!opts.noLink) log.ok("global CLI ready: try `hstack list`");
+  log.info("add more apps with: sudo hstack install <name>  (see: hstack list)");
 }

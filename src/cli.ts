@@ -1,12 +1,13 @@
 #!/usr/bin/env -S npx tsx
 /**
- * home-stack - idempotent Raspberry Pi 5 home-services configurator.
+ * hstack - idempotent Raspberry Pi 5 home-services configurator (home-stack).
  *
  * Usage (run setup with sudo):
- *   sudo npm run setup -- --with-homeassistant
- *   npm run status
- *   npm run backup
- *   npm run restore -- --list
+ *   sudo hstack setup
+ *   sudo hstack install homeassistant
+ *   hstack status
+ *   hstack backup
+ *   hstack restore --list
  */
 import { Command } from "commander";
 import { log } from "./util/log.js";
@@ -22,7 +23,7 @@ import { serviceVisibilityCommand, serviceListCommand } from "./commands/service
 const program = new Command();
 
 program
-  .name("home-stack")
+  .name("hstack")
   .description("Idempotent Raspberry Pi Docker home-services stack configurator")
   .option("-c, --config <path>", "path to config file", "home-stack.config.json");
 
@@ -31,11 +32,13 @@ program
   .description("provision/converge the whole stack (run as root)")
   .option("--install <names...>", "also install these catalog apps")
   .option("--skip-backup", "skip Restic backup configuration", false)
+  .option("--no-link", "do not symlink the global `hstack` command")
   .action(async (opts) => {
     await setupCommand({
       config: program.opts().config,
       install: opts.install,
       skipBackup: opts.skipBackup,
+      noLink: !opts.link,
     });
   });
 

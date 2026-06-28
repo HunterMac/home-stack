@@ -89,12 +89,13 @@ sudo npm run setup
 sudo npm run setup -- --install jellyfin homeassistant
 ```
 
-Add/remove apps anytime (no full setup needed):
+Add/remove apps anytime (no full setup needed). After linking the global CLI
+(see next section) these become `hstack ...`; until then use the npm form:
 
 ```bash
-npm run home-stack -- list                       # see the catalog
-sudo npm run home-stack -- install jellyfin      # install + bring up + .local route
-sudo npm run home-stack -- uninstall jellyfin    # remove container (keeps data)
+npm run hstack -- list                       # see the catalog
+sudo npm run hstack -- install jellyfin      # install + bring up + .local route
+sudo npm run hstack -- uninstall jellyfin    # remove container (keeps data)
 ```
 
 > Run `npm install` as your normal user (so `node_modules` isn't owned by root);
@@ -112,28 +113,71 @@ Open `https://portainer.local` (and `https://homeassistant.local`). With
 
 ---
 
+## Use it as a global `hstack` command
+
+**`sudo npm run setup` already does this for you** — it symlinks
+`/usr/local/bin/hstack` to the repo launcher as its last step. So the typical
+update loop is just:
+
+```bash
+cd ~/home-stack && git pull && sudo npm run setup
+```
+
+After that, `hstack ...` works from anywhere. Pass `--no-link` to setup to skip
+it. To (re)create the link without a full setup:
+
+```bash
+cd ~/home-stack
+sudo npm run link-cli         # symlinks /usr/local/bin/hstack -> repo launcher
+```
+
+(Equivalent manual step: `sudo ln -sf "$PWD/bin/hstack" /usr/local/bin/hstack`.)
+
+Now both user and root invocations work:
+
+```bash
+hstack list
+sudo hstack setup
+sudo hstack install homeassistant
+sudo hstack install jellyfin homeassistant
+sudo hstack uninstall jellyfin
+hstack status
+sudo hstack service visibility jellyfin public
+```
+
+The launcher resolves the repo through the symlink and runs the TypeScript CLI
+with the repo's local `tsx` — so **keep the repo in place** (don't delete
+`~/home-stack`). It defaults to `~/home-stack/home-stack.config.json` when run
+from any other directory, so you can call `hstack` from anywhere.
+
+> The rest of this README uses the `hstack <cmd>` form. Without the global link,
+> the equivalent is `npm run hstack -- <cmd>` (run inside the repo).
+
+---
+
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `sudo npm run setup` | Provision/converge core stack (idempotent) |
-| `sudo npm run setup -- --install jellyfin homeassistant` | Same, plus install apps |
-| `sudo npm run setup -- --skip-backup` | Skip Restic setup |
-| `npm run home-stack -- list` | List the app catalog + install status |
-| `sudo npm run home-stack -- install <app...>` | Install catalog app(s) + converge |
-| `sudo npm run home-stack -- uninstall <app...>` | Remove app(s) (keeps data) |
-| `npm run home-stack -- service list` | Show each service's exposure (local/public) |
-| `sudo npm run home-stack -- service visibility <name> public\|local` | Set exposure |
-| `npm run status` | Show containers, service URLs, backup snapshots |
-| `npm run backup` | Run a Restic backup + retention now |
-| `npm run restore -- --list` | List snapshots |
-| `npm run restore -- --snapshot latest` | Restore into a staging dir (`/srv/docker/_restore`) |
-| `npm run restore -- --snapshot latest --in-place` | Restore over live paths (dangerous) |
+| `sudo hstack setup` | Provision/converge core stack (idempotent) |
+| `sudo hstack setup --install jellyfin homeassistant` | Same, plus install apps |
+| `sudo hstack setup --skip-backup` | Skip Restic setup |
+| `hstack list` | List the app catalog + install status |
+| `sudo hstack install <app...>` | Install catalog app(s) + converge |
+| `sudo hstack uninstall <app...>` | Remove app(s) (keeps data) |
+| `hstack service list` | Show each service's exposure (local/public) |
+| `sudo hstack service visibility <name> public\|local` | Set exposure |
+| `hstack status` | Show containers, service URLs, backup snapshots |
+| `hstack backup` | Run a Restic backup + retention now |
+| `hstack restore --list` | List snapshots |
+| `hstack restore --snapshot latest` | Restore into a staging dir (`/srv/docker/_restore`) |
+| `hstack restore --snapshot latest --in-place` | Restore over live paths (dangerous) |
 
 All commands accept `--config <path>` (default `home-stack.config.json`).
 
-> `npm run home-stack -- <cmd>` forwards to the CLI. `sudo` is required for
-> `setup`, `install`, `uninstall` (they touch docker, /srv/docker and systemd).
+> Without the global link, use `npm run hstack -- <cmd>` (inside the repo).
+> `sudo` is required for `setup`, `install`, `uninstall`, `service visibility`
+> (they touch docker, /srv/docker and systemd).
 
 ---
 
@@ -171,8 +215,8 @@ Installable apps are a fixed catalog in `src/catalog.ts`. Current entries:
 | `uptime-kuma` | 3001 | Uptime monitoring |
 
 ```bash
-npm run home-stack -- list
-sudo npm run home-stack -- install jellyfin
+hstack list
+sudo hstack install jellyfin
 ```
 
 Installing an app: persists it to `installed`, creates its `config/<app>` +
@@ -196,10 +240,10 @@ Every service is **local by default**: reachable only on your LAN via
 internet**. You opt a service into public exposure explicitly:
 
 ```bash
-npm run home-stack -- service list                       # show exposure of all
-sudo npm run home-stack -- service visibility jellyfin public
-sudo npm run home-stack -- service visibility jellyfin local    # back to LAN-only
-npm run home-stack -- service visibility jellyfin              # just show current
+hstack service list                       # show exposure of all
+sudo hstack service visibility jellyfin public
+sudo hstack service visibility jellyfin local    # back to LAN-only
+hstack service visibility jellyfin              # just show current
 ```
 
 Public mode adds a second Caddy site on a **real domain**
