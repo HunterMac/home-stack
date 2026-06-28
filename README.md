@@ -213,8 +213,9 @@ Installable apps are a fixed catalog in `src/catalog.ts`. Current entries:
 
 | App | Port | Description |
 |---|---|---|
-| `homeassistant` | 8123 | Home automation hub |
+| `home-assistant` | 8123 | Home automation hub |
 | `jellyfin` | 8096 | Media server |
+| `ollama` | 11434 | Local LLM API (Ollama) |
 | `uptime-kuma` | 3001 | Uptime monitoring |
 
 ```bash

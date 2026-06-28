@@ -4,9 +4,7 @@
  * Core infrastructure (Caddy + Portainer) is NOT here — always deployed.
  * Catalog apps are added via `hstack install <name>`.
  *
- * Naming convention: canonical `name` = Docker image slug (e.g. "home-assistant").
- * Apps may declare `aliases` for convenience (e.g. "homeassistant" → "home-assistant").
- * `getApp(alias)` resolves to the canonical definition transparently.
+ * Naming convention: `name` = Docker image slug (e.g. "home-assistant", "ollama").
  *
  * To add a new app: one entry below. Compose service, Caddy route, mDNS hostname
  * and on-disk folders are all derived automatically.
@@ -109,6 +107,24 @@ export const CATALOG: Record<string, AppDefinition> = {
       environment: idEnv(ctx),
     }),
     note: "Add media under /srv/docker/appdata/jellyfin/media, then add libraries in the UI.",
+  },
+
+  ollama: {
+    name: "ollama",
+    description: "Ollama - run LLMs locally (API on port 11434)",
+    upstreamPort: 11434,
+    dirs: (ctx) => [`${ctx.paths.appdata}/ollama`],
+    compose: (ctx) => ({
+      image: "ollama/ollama:latest",
+      container_name: "ollama",
+      restart: "unless-stopped",
+      networks: ["homestack"],
+      volumes: [`${ctx.paths.appdata}/ollama:/root/.ollama`],
+      environment: { TZ: ctx.timezone, OLLAMA_HOST: "0.0.0.0:11434" },
+    }),
+    note:
+      "Pull a model: docker exec ollama ollama pull llama3.2. " +
+      "API at https://ollama.local — models live under appdata/ollama (can be large).",
   },
 
   "uptime-kuma": {
