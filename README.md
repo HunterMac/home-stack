@@ -19,6 +19,9 @@ Re-running `setup` is safe: every step converges and only changes what drifted.
 
 ## Architecture
 
+For the full design and the rationale behind the technical choices, see
+[`ARCHITECTURE.md`](./ARCHITECTURE.md). A quick overview:
+
 ```
 /srv/docker/                 # storage root (ext4 in Phase 1, btrfs in Phase 2)
 ├── compose/                 # generated docker-compose.yml
