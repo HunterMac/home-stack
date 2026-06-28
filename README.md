@@ -32,13 +32,15 @@ For the full design and the rationale behind the technical choices, see
 ├── appdata/                 # per-service persistent DATA / state
 │   ├── portainer/
 │   ├── caddy/{data,config}/
-│   └── homeassistant/...
+│   └── home-assistant/...
+├── shared/                  # host path → /shared in every container (apps create subdirs themselves)
 └── backups/restic/          # local restic repository (Phase 1 default)
 ```
 
 Why split `config/` and `appdata/`? It makes **config-only** vs **full**
-restores trivial, and keeps the noisy, large state out of the part you most
-want to version and reason about.
+restores trivial. **`shared/`** on the host is mounted as **`/shared`** inside
+every container (catalog, custom, and core) — apps create their own subfolders under
+`/shared` as needed (e.g. Jellyfin uses `/shared/media`).
 
 ### Request flow
 

@@ -5,6 +5,8 @@
 import { stringify } from "yaml";
 import { appContext, type ResolvedConfig } from "../config.js";
 import { getApp } from "../catalog/index.js";
+import { withSharedVolume } from "../catalog/helpers.js";
+import type { ComposeService } from "../catalog/index.js";
 import { buildCustomService } from "./custom.js";
 
 export function renderCompose(cfg: ResolvedConfig): string {
@@ -50,6 +52,11 @@ export function renderCompose(cfg: ResolvedConfig): string {
   // --- User-defined custom apps ---
   for (const customApp of cfg.customApps) {
     services[customApp.name] = buildCustomService(customApp, ctx);
+  }
+
+  // Every service gets the same host shared root at /shared (catalog + custom + core).
+  for (const name of Object.keys(services)) {
+    services[name] = withSharedVolume(services[name] as ComposeService, ctx);
   }
 
   const doc = {

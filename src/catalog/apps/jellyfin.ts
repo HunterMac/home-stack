@@ -6,8 +6,8 @@ export const app: AppDefinition = {
   description: "Jellyfin - free software media server",
   upstreamPort: 8096,
   dirs: (ctx) => [
+    `${ctx.paths.shared}/media`,
     `${ctx.paths.appdata}/jellyfin/cache`,
-    `${ctx.paths.appdata}/jellyfin/media`,
   ],
   compose: (ctx) => ({
     image: "jellyfin/jellyfin:latest",
@@ -17,9 +17,8 @@ export const app: AppDefinition = {
     volumes: [
       `${ctx.paths.config}/jellyfin:/config`,
       `${ctx.paths.appdata}/jellyfin/cache:/cache`,
-      `${ctx.paths.appdata}/jellyfin/media:/media`,
     ],
     environment: idEnv(ctx),
   }),
-  note: "Add media under /srv/docker/appdata/jellyfin/media, then add libraries in the UI.",
+  note: "Add library folder /shared/media in the Jellyfin UI (this app creates that subfolder on install).",
 };

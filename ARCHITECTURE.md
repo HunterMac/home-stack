@@ -74,15 +74,16 @@ Everything the stack owns lives under `storage.root` (default `/srv/docker`):
 │   ├── caddy/.basicauth.{hash,meta}            (derived, cached)
 │   ├── homeassistant/configuration.yaml         (SEEDED once, then yours)
 │   └── restic/password                          (generated once — keep safe!)
-├── appdata/        per-service persistent state  (databases, caches, media)
-│   ├── portainer/  caddy/{data,config}/  homeassistant/  jellyfin/{cache,media} …
+├── appdata/        per-service persistent state  (databases, caches)
+│   ├── portainer/  caddy/{data,config}/  jellyfin/cache/  filebrowser/database/ …
+├── shared/         host shared tree — mounted as /shared in every container
 └── backups/restic/ local restic repository       (default; move off-box ideally)
 ```
 
 **Why split `config/` and `appdata/`?** It makes the two restore modes trivial:
-restore just `config/` to recover settings, or `config/` + `appdata/` for a full
-recovery. It also keeps the small, human-meaningful files away from the large,
-noisy runtime state.
+restore just `config/` to recover settings, or `config/` + `appdata/` + `shared/`
+for a full recovery. **`shared/`** on the host is always mounted at **`/shared`**
+inside every service (catalog, custom, core) by the compose generator.
 
 The repo itself is *not* here — it stays in the user's home dir (see §9).
 

@@ -115,7 +115,7 @@ export const ConfigSchema = z.object({
       passwordFile: z.string().default("/srv/docker/config/restic/password"),
       paths: z
         .array(z.string())
-        .default(["/srv/docker/config", "/srv/docker/appdata", "/srv/docker/compose"]),
+        .default(["/srv/docker/config", "/srv/docker/appdata", "/srv/docker/compose", "/srv/docker/shared"]),
       keepDaily: z.number().int().default(7),
       keepWeekly: z.number().int().default(4),
       keepMonthly: z.number().int().default(6),
@@ -188,6 +188,20 @@ export interface ResolvedConfig extends Config {
     appdata: string;
     config: string;
     backups: string;
+    /** Host path mounted as `/shared` in every container. */
+    shared: string;
+  };
+}
+
+/** Derive all on-disk paths from the storage root. */
+export function stackPaths(root: string): ResolvedConfig["paths"] {
+  return {
+    root,
+    compose: `${root}/compose`,
+    appdata: `${root}/appdata`,
+    config: `${root}/config`,
+    backups: `${root}/backups`,
+    shared: `${root}/shared`,
   };
 }
 
@@ -265,13 +279,7 @@ export function loadConfig(configPath?: string): ResolvedConfig {
     ...cfg,
     configPath: path,
     activeServices: [...CORE_SERVICES, ...installedServices, ...customServices],
-    paths: {
-      root,
-      compose: `${root}/compose`,
-      appdata: `${root}/appdata`,
-      config: `${root}/config`,
-      backups: `${root}/backups`,
-    },
+    paths: stackPaths(root),
   };
 }
 

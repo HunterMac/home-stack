@@ -6,6 +6,8 @@ export interface AppContext {
     appdata: string;
     config: string;
     backups: string;
+    /** Cross-app shared host directory — mounted as `/shared` in every container. */
+    shared: string;
   };
   timezone: string;
   puid: number;

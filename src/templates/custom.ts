@@ -1,9 +1,8 @@
 /**
  * Generic compose service builder for user-defined custom apps.
  *
- * Provides sensible defaults (restart policy, shared network, TZ env,
- * standard appdata + config volumes) while allowing the user to extend
- * with extra env vars and volume mounts.
+ * The stack-wide shared volume (host shared/ → /shared) is appended automatically
+ * by renderCompose() for every service — including custom apps.
  */
 import type { AppContext } from "../catalog/index.js";
 import type { CustomApp } from "../config.js";

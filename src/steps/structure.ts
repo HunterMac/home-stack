@@ -39,16 +39,20 @@ export async function structureStep(cfg: ResolvedConfig): Promise<void> {
     ensureDir(`${config}/${customApp.name}`);
   }
 
+  // Stack-wide shared folder — apps create their own subdirs (e.g. jellyfin → shared/media).
+  ensureDir(cfg.paths.shared);
+
   // Core service folders that always exist regardless of toggles.
   ensureDir(`${appdata}/caddy/data`);
   ensureDir(`${appdata}/caddy/config`);
   ensureDir(`${config}/caddy`);
   ensureDir(`${config}/restic`, 0o700);
 
-  // Hand ownership of appdata + config to the stack user (root keeps the root).
+  // Hand ownership of appdata, config and shared to the stack user.
   if (cfg.puid !== null && cfg.pgid !== null) {
     await chownRecursive(appdata, cfg.puid, cfg.pgid);
     await chownRecursive(config, cfg.puid, cfg.pgid);
-    log.ok(`chowned appdata + config to ${cfg.user} (${cfg.puid}:${cfg.pgid})`);
+    await chownRecursive(cfg.paths.shared, cfg.puid, cfg.pgid);
+    log.ok(`chowned appdata + config + shared to ${cfg.user} (${cfg.puid}:${cfg.pgid})`);
   }
 }
