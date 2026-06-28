@@ -1,12 +1,15 @@
 /**
  * Fixed catalog of installable apps.
  *
- * Core infrastructure (Caddy reverse proxy + Portainer) is NOT in here - it is
- * always deployed by the compose generator. The catalog only lists optional
- * apps a user can add via `home-stack install <name>`.
+ * Core infrastructure (Caddy + Portainer) is NOT here — always deployed.
+ * Catalog apps are added via `hstack install <name>`.
  *
- * To add a new app: add one entry below. The compose service, Caddy route,
- * mDNS hostname and on-disk folders are all derived from it automatically.
+ * Naming convention: canonical `name` = Docker image slug (e.g. "home-assistant").
+ * Apps may declare `aliases` for convenience (e.g. "homeassistant" → "home-assistant").
+ * `getApp(alias)` resolves to the canonical definition transparently.
+ *
+ * To add a new app: one entry below. Compose service, Caddy route, mDNS hostname
+ * and on-disk folders are all derived automatically.
  */
 import { renderHomeAssistantConfig } from "./templates/homeassistant.js";
 
@@ -34,7 +37,8 @@ export interface SeedFile {
 }
 
 export interface AppDefinition {
-  /** DNS-safe id; also the compose service name + `<name>.local` hostname. */
+  /** DNS-safe id matching the Docker image slug. Also the compose service name
+   *  and `<name>.local` mDNS hostname. */
   name: string;
   description: string;
   /** Host Caddy proxies to (defaults to `name`). */
@@ -56,17 +60,17 @@ function idEnv(ctx: AppContext): Record<string, string> {
 }
 
 export const CATALOG: Record<string, AppDefinition> = {
-  homeassistant: {
-    name: "homeassistant",
+  "home-assistant": {
+    name: "home-assistant",
     description: "Home Assistant - open-source home automation hub",
     upstreamPort: 8123,
     compose: (ctx) => ({
       image: "ghcr.io/home-assistant/home-assistant:stable",
-      container_name: "homeassistant",
+      container_name: "home-assistant",
       restart: "unless-stopped",
       networks: ["homestack"],
       volumes: [
-        `${ctx.paths.config}/homeassistant:/config`,
+        `${ctx.paths.config}/home-assistant:/config`,
         "/etc/localtime:/etc/localtime:ro",
         "/run/dbus:/run/dbus:ro",
       ],
@@ -74,12 +78,12 @@ export const CATALOG: Record<string, AppDefinition> = {
     }),
     seed: (ctx) => [
       {
-        path: `${ctx.paths.config}/homeassistant/configuration.yaml`,
+        path: `${ctx.paths.config}/home-assistant/configuration.yaml`,
         content: renderHomeAssistantConfig(ctx.timezone),
       },
-      { path: `${ctx.paths.config}/homeassistant/automations.yaml`, content: "[]\n" },
-      { path: `${ctx.paths.config}/homeassistant/scenes.yaml`, content: "[]\n" },
-      { path: `${ctx.paths.config}/homeassistant/scripts.yaml`, content: "[]\n" },
+      { path: `${ctx.paths.config}/home-assistant/automations.yaml`, content: "[]\n" },
+      { path: `${ctx.paths.config}/home-assistant/scenes.yaml`, content: "[]\n" },
+      { path: `${ctx.paths.config}/home-assistant/scripts.yaml`, content: "[]\n" },
     ],
     note: "Finish onboarding in the browser; HA is pre-configured to trust the Caddy proxy.",
   },
@@ -103,8 +107,6 @@ export const CATALOG: Record<string, AppDefinition> = {
         `${ctx.paths.appdata}/jellyfin/media:/media`,
       ],
       environment: idEnv(ctx),
-      // For hardware transcoding on the Pi, uncomment in compose.ts:
-      //   devices: ["/dev/dri:/dev/dri"]
     }),
     note: "Add media under /srv/docker/appdata/jellyfin/media, then add libraries in the UI.",
   },

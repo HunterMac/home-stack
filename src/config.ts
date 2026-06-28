@@ -45,8 +45,31 @@ export const ConfigSchema = z.object({
     })
     .default({}),
 
-  /** Catalog apps to deploy. Managed via `home-stack install/uninstall`. */
+  /** Catalog apps to deploy. Managed via `hstack install/uninstall`. */
   installed: z.array(z.string()).default([]),
+
+  /**
+   * User-defined custom apps (not in the catalog). Added automatically when
+   * the user confirms an `hstack install <unknown>` prompt, or hand-edited.
+   * Each gets a generic compose service, Caddy route, mDNS hostname and
+   * standard appdata/config folders.
+   */
+  customApps: z
+    .array(
+      z.object({
+        /** DNS-safe id; also the compose service name + `<name>.local`. */
+        name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "lowercase dns-safe name"),
+        /** Full Docker image reference, e.g. "ollama/ollama:latest". */
+        image: z.string().min(1),
+        /** Container port Caddy proxies to. */
+        port: z.number().int().positive(),
+        /** Extra environment vars injected into the container. */
+        env: z.record(z.string()).optional(),
+        /** Extra volume mounts in docker-compose "host:container" notation. */
+        volumes: z.array(z.string()).optional(),
+      }),
+    )
+    .default([]),
 
   /**
    * Optional shared HTTP basic-auth gate, enforced by Caddy in front of
@@ -102,6 +125,52 @@ export const ConfigSchema = z.object({
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
+export type CustomApp = Config["customApps"][number];
+
+/** Regex for DNS-safe app names (must match customApps schema). */
+export const APP_NAME_REGEX = /^[a-z0-9][a-z0-9-]*$/;
+
+/** Reusable schema for a single custom app entry. */
+export const CustomAppSchema = z.object({
+  name: z.string().regex(APP_NAME_REGEX, "lowercase dns-safe name"),
+  image: z.string().min(1),
+  port: z.number().int().positive(),
+  env: z.record(z.string()).optional(),
+  volumes: z.array(z.string()).optional(),
+});
+
+/** Core infrastructure names — never allowed as custom apps. */
+const CORE_RESERVED_NAMES = new Set(["caddy", "portainer"]);
+
+/** Validate a proposed custom app name matches the DNS-safe format. */
+export function validateCustomAppName(name: string): void {
+  if (!APP_NAME_REGEX.test(name)) {
+    throw new Error(
+      `invalid app name '${name}': must be lowercase, dns-safe ` +
+        `(letters, digits, hyphens; e.g. ollama, home-assistant)`,
+    );
+  }
+}
+
+/** Reject custom app names that collide with catalog, core or installed apps. */
+export function assertCustomAppNameAllowed(
+  name: string,
+  cfg: Pick<Config, "installed" | "customApps">,
+): void {
+  validateCustomAppName(name);
+  if (CORE_RESERVED_NAMES.has(name)) {
+    throw new Error(`'${name}' is reserved for core infrastructure`);
+  }
+  if (getApp(name)) {
+    throw new Error(`'${name}' is a catalog app — use: hstack install ${name}`);
+  }
+  if (cfg.installed.includes(name)) {
+    throw new Error(
+      `'${name}' is already installed as a catalog app; ` +
+        `remove it first or choose a different custom app name`,
+    );
+  }
+}
 
 /** Pre-installed core service that also gets a Caddy route + mDNS name. */
 const CORE_SERVICES: Service[] = [
@@ -111,7 +180,7 @@ const CORE_SERVICES: Service[] = [
 export interface ResolvedConfig extends Config {
   /** Resolved absolute config file path (for persistence). */
   configPath: string;
-  /** Effective routable services: core + installed catalog apps. */
+  /** Effective routable services: core + installed catalog apps + custom apps. */
   activeServices: Service[];
   paths: {
     root: string;
@@ -141,20 +210,33 @@ export function loadConfig(configPath?: string): ResolvedConfig {
   }
   cfg.installed = installed;
 
+  // Validate custom apps: format, no shadowing of catalog/core/installed.
+  for (const app of cfg.customApps) {
+    assertCustomAppNameAllowed(app.name, cfg);
+  }
+  const customNameList = cfg.customApps.map((a) => a.name);
+  const dupCustom = customNameList.filter((n, i) => customNameList.indexOf(n) !== i);
+  if (dupCustom.length) {
+    throw new Error(`duplicate custom app name(s): ${[...new Set(dupCustom)].join(", ")}`);
+  }
+
   // Validate auth.
   if (cfg.auth.enabled && !cfg.auth.password) {
     throw new Error("auth.enabled is true but auth.password is empty");
   }
-  const unknownAuth = cfg.auth.apps.filter((n) => !getApp(n));
+  // Validate auth (catalog + custom apps).
+  const customNames = new Set(cfg.customApps.map((a) => a.name));
+  const knownAuthNames = new Set<string>([...catalogNames(), ...customNames]);
+  const unknownAuth = cfg.auth.apps.filter((n) => !knownAuthNames.has(n));
   if (unknownAuth.length) {
     throw new Error(
       `unknown app(s) in auth.apps: ${unknownAuth.join(", ")}. ` +
-        `Available: ${catalogNames().join(", ")}`,
+        `Known: ${[...knownAuthNames].join(", ")}`,
     );
   }
 
-  // Validate visibility.
-  const knownNames = new Set<string>(["portainer", ...catalogNames()]);
+  // Validate visibility (must include custom app names too).
+  const knownNames = new Set<string>(["portainer", ...catalogNames(), ...customNames]);
   const unknownVis = Object.keys(cfg.visibility).filter((n) => !knownNames.has(n));
   if (unknownVis.length) {
     throw new Error(
@@ -172,11 +254,17 @@ export function loadConfig(configPath?: string): ResolvedConfig {
     return { name: app.name, upstreamHost: app.upstreamHost ?? app.name, upstreamPort: app.upstreamPort };
   });
 
+  const customServices: Service[] = cfg.customApps.map((a) => ({
+    name: a.name,
+    upstreamHost: a.name,
+    upstreamPort: a.port,
+  }));
+
   const root = cfg.storage.root;
   return {
     ...cfg,
     configPath: path,
-    activeServices: [...CORE_SERVICES, ...installedServices],
+    activeServices: [...CORE_SERVICES, ...installedServices, ...customServices],
     paths: {
       root,
       compose: `${root}/compose`,
@@ -232,6 +320,31 @@ export function appContext(cfg: ResolvedConfig): AppContext {
     puid: cfg.puid ?? 1000,
     pgid: cfg.pgid ?? 1000,
   };
+}
+
+/** Persist a new custom app entry to the config file. */
+export function saveCustomApp(cfg: ResolvedConfig, app: CustomApp): void {
+  const parsed = CustomAppSchema.parse(app);
+  assertCustomAppNameAllowed(parsed.name, cfg);
+  let raw: Record<string, unknown> = {};
+  if (existsSync(cfg.configPath)) {
+    raw = JSON.parse(readFileSync(cfg.configPath, "utf8"));
+  }
+  const existing = (raw.customApps as CustomApp[] | undefined) ?? [];
+  const without = existing.filter((a) => a.name !== parsed.name);
+  raw.customApps = [...without, parsed];
+  writeFileSync(cfg.configPath, JSON.stringify(raw, null, 2) + "\n");
+}
+
+/** Remove a custom app entry from the config file. */
+export function removeCustomApp(cfg: ResolvedConfig, name: string): void {
+  let raw: Record<string, unknown> = {};
+  if (existsSync(cfg.configPath)) {
+    raw = JSON.parse(readFileSync(cfg.configPath, "utf8"));
+  }
+  const existing = (raw.customApps as CustomApp[] | undefined) ?? [];
+  raw.customApps = existing.filter((a) => a.name !== name);
+  writeFileSync(cfg.configPath, JSON.stringify(raw, null, 2) + "\n");
 }
 
 /** Persist the `installed` list back to the config file (creating it if needed). */

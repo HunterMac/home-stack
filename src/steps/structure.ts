@@ -33,6 +33,12 @@ export async function structureStep(cfg: ResolvedConfig): Promise<void> {
     for (const dir of app?.dirs?.(ctx) ?? []) ensureDir(dir);
   }
 
+  // Custom apps: standard appdata + config dirs (volumes in buildCustomService).
+  for (const customApp of cfg.customApps) {
+    ensureDir(`${appdata}/${customApp.name}`);
+    ensureDir(`${config}/${customApp.name}`);
+  }
+
   // Core service folders that always exist regardless of toggles.
   ensureDir(`${appdata}/caddy/data`);
   ensureDir(`${appdata}/caddy/config`);

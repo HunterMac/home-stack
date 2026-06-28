@@ -5,6 +5,7 @@
 import { stringify } from "yaml";
 import { appContext, type ResolvedConfig } from "../config.js";
 import { getApp } from "../catalog.js";
+import { buildCustomService } from "./custom.js";
 
 export function renderCompose(cfg: ResolvedConfig): string {
   const ctx = appContext(cfg);
@@ -44,6 +45,11 @@ export function renderCompose(cfg: ResolvedConfig): string {
     const app = getApp(name);
     if (!app) continue;
     services[app.name] = app.compose(ctx);
+  }
+
+  // --- User-defined custom apps ---
+  for (const customApp of cfg.customApps) {
+    services[customApp.name] = buildCustomService(customApp, ctx);
   }
 
   const doc = {
