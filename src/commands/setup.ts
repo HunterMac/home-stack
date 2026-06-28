@@ -1,6 +1,6 @@
 /** `setup` command: run every provisioning step in order. Idempotent. */
 import { loadConfig, saveInstalled } from "../config.js";
-import { getApp, catalogNames } from "../catalog.js";
+import { getApp, catalogNames } from "../catalog/index.js";
 import { requireRoot, requireLinux, resolveUser } from "../util/system.js";
 import { log, die } from "../util/log.js";
 import { systemStep } from "../steps/system.js";

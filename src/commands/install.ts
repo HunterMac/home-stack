@@ -7,7 +7,7 @@
  *                then converge exactly like a catalog app.
  */
 import { loadConfig, saveInstalled, saveCustomApp, removeCustomApp, serviceFqdn, validateCustomAppName, assertCustomAppNameAllowed, type CustomApp } from "../config.js";
-import { getApp, catalogNames } from "../catalog.js";
+import { getApp, catalogNames } from "../catalog/index.js";
 import { requireRoot, requireLinux, resolveUser } from "../util/system.js";
 import { log, die } from "../util/log.js";
 import { structureStep } from "../steps/structure.js";
@@ -103,8 +103,10 @@ async function handleUnknownApp(name: string, configPath: string | undefined): P
   const image = await input("Docker image (e.g. ollama/ollama:latest)", defaultImage);
   if (!image) { die("image reference is required"); }
 
-  // 3. Collect upstream port.
-  const portStr = await input("Container port Caddy should proxy to (e.g. 11434)");
+  // 3. Collect upstream port (inside the container — NOT a host port mapping).
+  const portStr = await input(
+    "Container port Caddy should proxy to (inside Docker, e.g. 80 for filebrowser, 11434 for ollama)",
+  );
   const port = parseInt(portStr, 10);
   if (isNaN(port) || port <= 0 || port > 65535) die(`invalid port: ${portStr}`);
 

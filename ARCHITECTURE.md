@@ -94,7 +94,11 @@ The repo itself is *not* here — it stays in the user's home dir (see §9).
 src/
 ├── cli.ts            Commander entrypoint: flags → command functions
 ├── config.ts         Zod schema, loader, derived ResolvedConfig, persistence helpers
-├── catalog.ts        FIXED registry of installable apps (the only "plugin" surface)
+├── catalog/          FIXED registry of installable apps (one file per app)
+│   ├── types.ts        AppDefinition, AppContext interfaces
+│   ├── helpers.ts      shared builders (idEnv, …)
+│   ├── index.ts        collects apps → CATALOG, getApp, catalogNames
+│   └── apps/           one module per app (home-assistant.ts, jellyfin.ts, …)
 │
 ├── commands/         One file per user-facing verb (orchestration, no system calls)
 │   ├── setup.ts        run all steps in order (idempotent converge)
@@ -181,7 +185,8 @@ Idempotency is enforced at the lowest level so every higher level inherits it:
 
 ## 7. The catalog model
 
-Installable apps live in **one fixed registry**, `src/catalog.ts`. Each entry is
+Installable apps live under **`src/catalog/apps/`** (one `AppDefinition` per file),
+collected by `src/catalog/index.ts`. Each entry is
 an `AppDefinition` with `name`, `upstreamPort`, a `compose(ctx)` builder, and
 optional `dirs` / `seed` / `note`. The user's config only stores **which** apps
 are installed (`installed: string[]`) and how they're exposed (`visibility`).
@@ -269,8 +274,8 @@ dir). `bin/hstack` + the `/usr/local/bin/hstack` symlink resolve the repo via
 
 ## 12. Extending the system
 
-- **New app:** add one `AppDefinition` to `src/catalog.ts`. Routing, mDNS, dirs
-  and seeds follow automatically; no other file changes.
+- **New app:** add `src/catalog/apps/<name>.ts` and register it in
+  `src/catalog/index.ts`. Routing, mDNS, dirs and seeds follow automatically.
 - **New provisioning concern:** add a `steps/*.ts` function and call it from
   `commands/setup.ts` in the right order; keep it idempotent via `util/fs.ts`.
 - **New generated artifact:** add a pure function in `templates/*` and write it

@@ -4,7 +4,7 @@
  */
 import { stringify } from "yaml";
 import { appContext, type ResolvedConfig } from "../config.js";
-import { getApp } from "../catalog.js";
+import { getApp } from "../catalog/index.js";
 import { buildCustomService } from "./custom.js";
 
 export function renderCompose(cfg: ResolvedConfig): string {

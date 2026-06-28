@@ -1,6 +1,6 @@
 /** `list` command: show the app catalog and which apps are installed. */
 import { loadConfig } from "../config.js";
-import { CATALOG } from "../catalog.js";
+import { CATALOG } from "../catalog/index.js";
 import { log } from "../util/log.js";
 
 export async function listCommand(opts: { config?: string }): Promise<void> {

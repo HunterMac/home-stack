@@ -5,9 +5,9 @@
  * standard appdata + config volumes) while allowing the user to extend
  * with extra env vars and volume mounts.
  */
-import type { AppContext } from "../catalog.js";
+import type { AppContext } from "../catalog/index.js";
 import type { CustomApp } from "../config.js";
-import type { ComposeService } from "../catalog.js";
+import type { ComposeService } from "../catalog/index.js";
 
 export function buildCustomService(app: CustomApp, ctx: AppContext): ComposeService {
   const volumes: string[] = [

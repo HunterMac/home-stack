@@ -4,14 +4,14 @@
  * Reads `home-stack.config.json` (override with --config), validates it with
  * zod, fills defaults and derives runtime paths + the effective service list.
  *
- * Installable apps live in the fixed catalog (src/catalog.ts). The only state
+ * Installable apps live in the catalog (`src/catalog/apps/`). The only state
  * the user keeps here is which catalog apps are `installed`. Core infrastructure
  * (Caddy + Portainer) is always present and is not listed in `installed`.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
-import { type AppContext, getApp, catalogNames } from "./catalog.js";
+import { type AppContext, getApp, catalogNames } from "./catalog/index.js";
 
 /** A routable service: how Caddy + mDNS reach it. */
 export interface Service {

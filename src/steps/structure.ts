@@ -12,7 +12,7 @@
 import { ensureDir, chownRecursive } from "../util/fs.js";
 import { log } from "../util/log.js";
 import { appContext, type ResolvedConfig } from "../config.js";
-import { getApp } from "../catalog.js";
+import { getApp } from "../catalog/index.js";
 
 export async function structureStep(cfg: ResolvedConfig): Promise<void> {
   log.step("Directory structure");

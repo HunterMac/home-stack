@@ -209,12 +209,13 @@ Edit `home-stack.config.json` (copied from the `.example`). Key fields:
 
 ## The app catalog
 
-Installable apps are a fixed catalog in `src/catalog.ts`. Current entries:
+Installable apps are a fixed catalog under `src/catalog/apps/` (one file per app). Current entries:
 
 | App | Port | Description |
 |---|---|---|
 | `home-assistant` | 8123 | Home automation hub |
 | `jellyfin` | 8096 | Media server |
+| `filebrowser` | 80 | Web file manager |
 | `ollama` | 11434 | Local LLM API (Ollama) |
 | `uptime-kuma` | 3001 | Uptime monitoring |
 
@@ -230,10 +231,9 @@ once, regenerates `docker-compose.yml` + `Caddyfile` + mDNS, and brings it up at
 
 ### Adding a new app to the catalog
 
-Add one entry to the `CATALOG` map in `src/catalog.ts` — `name`, `upstreamPort`,
-a `compose(ctx)` builder, and optionally `dirs`, `seed`, `note`. The compose
-service, Caddy route, mDNS hostname and folders are all derived automatically.
-No other file needs changing.
+Create `src/catalog/apps/my-app.ts` exporting an `AppDefinition`, then register
+it in `src/catalog/index.ts`. The compose service, Caddy route, mDNS hostname
+and folders are all derived automatically. See any existing app file for the pattern.
 
 ---
 
@@ -336,7 +336,7 @@ for cheap snapshots. Everything else is identical to Phase 1.
 - **Home Assistant** runs on the shared bridge network (not host mode) so Caddy
   can reach it by name. Pure host mode enables some local-discovery integrations
   but breaks name-based reverse proxying; switch the `homeassistant` entry to
-  `network_mode: host` in `src/catalog.ts` if you need it and proxy to the Pi's IP.
+  `network_mode: host` in `src/catalog/apps/home-assistant.ts` if you need it and proxy to the Pi's IP.
 - Adding the user to the `docker` group takes effect on next login.
 - Designed and tested against Raspberry Pi OS (Debian bookworm) on arm64.
 ```

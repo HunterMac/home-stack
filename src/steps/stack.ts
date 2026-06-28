@@ -11,7 +11,7 @@ import { renderCompose } from "../templates/compose.js";
 import { renderCaddyfile } from "../templates/caddyfile.js";
 import { resolveBasicAuth } from "../util/auth.js";
 import { appContext, type ResolvedConfig } from "../config.js";
-import { getApp } from "../catalog.js";
+import { getApp } from "../catalog/index.js";
 
 export async function stackStep(cfg: ResolvedConfig): Promise<void> {
   log.step("Deploy stack (compose + Caddy)");

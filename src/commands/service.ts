@@ -10,7 +10,7 @@
  * it still requires you to forward 80/443 (or run a tunnel) and is risky.
  */
 import { loadConfig, saveVisibility, serviceFqdn, publicFqdn, isPublic } from "../config.js";
-import { catalogNames } from "../catalog.js";
+import { catalogNames } from "../catalog/index.js";
 import { requireRoot, requireLinux, resolveUser } from "../util/system.js";
 import { log, die } from "../util/log.js";
 import { stackStep } from "../steps/stack.js";
