@@ -1,0 +1,29 @@
+{
+  "user": "",
+  "timezone": "Europe/Warsaw",
+  "puid": null,
+  "pgid": null,
+
+  "storage": {
+    "root": "/srv/docker",
+    "phase": 1,
+    "device": ""
+  },
+
+  "network": {
+    "domainSuffix": "local",
+    "tls": "internal"
+  },
+
+  "installed": [],
+
+  "backup": {
+    "repo": "/srv/docker/backups/restic",
+    "passwordFile": "/srv/docker/config/restic/password",
+    "paths": ["/srv/docker/config", "/srv/docker/appdata", "/srv/docker/compose"],
+    "keepDaily": 7,
+    "keepWeekly": 4,
+    "keepMonthly": 6,
+    "schedule": "*-*-* 03:30:00"
+  }
+}

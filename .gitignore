@@ -1,3 +1,7 @@
+# home-stack: real (secret-bearing) config + build output
+home-stack.config.json
+dist/
+
 # Logs
 logs
 *.log

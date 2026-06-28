@@ -1,0 +1,32 @@
+{
+  "name": "home-stack",
+  "version": "0.1.0",
+  "description": "Idempotent Raspberry Pi 5 node configurator for a Docker home-services stack (Home Assistant, Portainer, Caddy, Restic).",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "home-stack": "src/cli.ts"
+  },
+  "scripts": {
+    "home-stack": "tsx src/cli.ts",
+    "setup": "tsx src/cli.ts setup",
+    "backup": "tsx src/cli.ts backup",
+    "restore": "tsx src/cli.ts restore",
+    "status": "tsx src/cli.ts status",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "execa": "^9.5.2",
+    "yaml": "^2.6.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
