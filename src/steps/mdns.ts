@@ -14,7 +14,7 @@ export async function mdnsStep(cfg: ResolvedConfig, configPath: string): Promise
   log.step("mDNS service publisher");
 
   const unitPath = "/etc/systemd/system/home-stack-mdns.service";
-  const changed = writeFileIdempotent(
+  const unitChanged = writeFileIdempotent(
     unitPath,
     renderMdnsService({
       repoDir: repoRoot(),
@@ -24,20 +24,25 @@ export async function mdnsStep(cfg: ResolvedConfig, configPath: string): Promise
     }),
   );
 
-  if (changed) await run("systemctl", ["daemon-reload"]);
+  // The mDNS process reads the published hosts from config at *start* time, and
+  // the unit text doesn't encode them. Track the host list in a state file so we
+  // can detect when the advertised set changes and restart accordingly.
+  const hostList = cfg.activeServices.map((s) => `${s.name}.${cfg.network.domainSuffix}`);
+  const hostsChanged = writeFileIdempotent(
+    `${cfg.paths.config}/.mdns-hosts`,
+    hostList.join("\n") + "\n",
+  );
 
+  if (unitChanged) await run("systemctl", ["daemon-reload"]);
   await run("systemctl", ["enable", "home-stack-mdns"]);
-  if (changed) {
-    // Unit content changed: restart applies it (and starts it if stopped).
+
+  const active = await ok("systemctl", ["is-active", "--quiet", "home-stack-mdns"]);
+  if (unitChanged || hostsChanged || !active) {
+    // restart (re)reads the host list; it also starts the unit if stopped.
     await run("systemctl", ["restart", "home-stack-mdns"]);
-  } else if (await ok("systemctl", ["is-active", "--quiet", "home-stack-mdns"])) {
-    log.skip("home-stack-mdns already active");
   } else {
-    await run("systemctl", ["start", "home-stack-mdns"]);
+    log.skip("home-stack-mdns already active with current hosts");
   }
 
-  const hosts = cfg.activeServices
-    .map((s) => `${s.name}.${cfg.network.domainSuffix}`)
-    .join(", ");
-  log.ok(`publishing mDNS hosts: ${hosts}`);
+  log.ok(`publishing mDNS hosts: ${hostList.join(", ")}`);
 }
