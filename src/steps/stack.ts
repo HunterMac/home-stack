@@ -5,10 +5,11 @@
  */
 import { existsSync } from "node:fs";
 import { writeFileIdempotent } from "../util/fs.js";
-import { run } from "../util/exec.js";
+import { run, ok } from "../util/exec.js";
 import { log } from "../util/log.js";
 import { renderCompose } from "../templates/compose.js";
 import { renderCaddyfile } from "../templates/caddyfile.js";
+import { resolveBasicAuth } from "../util/auth.js";
 import { appContext, type ResolvedConfig } from "../config.js";
 import { getApp } from "../catalog.js";
 
@@ -17,7 +18,12 @@ export async function stackStep(cfg: ResolvedConfig): Promise<void> {
 
   const composeFile = `${cfg.paths.compose}/docker-compose.yml`;
   writeFileIdempotent(composeFile, renderCompose(cfg));
-  writeFileIdempotent(`${cfg.paths.config}/caddy/Caddyfile`, renderCaddyfile(cfg));
+
+  const auth = await resolveBasicAuth(cfg);
+  const caddyfileChanged = writeFileIdempotent(
+    `${cfg.paths.config}/caddy/Caddyfile`,
+    renderCaddyfile(cfg, auth),
+  );
 
   // Seed each installed app's config once so user edits survive re-runs.
   const ctx = appContext(cfg);
@@ -46,4 +52,19 @@ export async function stackStep(cfg: ResolvedConfig): Promise<void> {
     "--remove-orphans",
   ]);
   log.ok("stack is up");
+
+  // A changed Caddyfile needs a graceful reload (the bind-mount alone won't
+  // restart Caddy). Fall back to a container restart if reload fails.
+  if (caddyfileChanged && (await ok("docker", ["inspect", "caddy"]))) {
+    const reloaded = await ok("docker", [
+      "exec",
+      "caddy",
+      "caddy",
+      "reload",
+      "--config",
+      "/etc/caddy/Caddyfile",
+    ]);
+    if (reloaded) log.ok("caddy reloaded");
+    else await run("docker", ["restart", "caddy"]);
+  }
 }

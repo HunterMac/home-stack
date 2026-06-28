@@ -17,6 +17,7 @@ import { statusCommand } from "./commands/status.js";
 import { mdnsCommand } from "./commands/mdns.js";
 import { installCommand, uninstallCommand } from "./commands/install.js";
 import { listCommand } from "./commands/list.js";
+import { serviceVisibilityCommand, serviceListCommand } from "./commands/service.js";
 
 const program = new Command();
 
@@ -60,6 +61,24 @@ program
   .description("list the app catalog + install status")
   .action(async () => {
     await listCommand({ config: program.opts().config });
+  });
+
+const service = program.command("service").description("manage service exposure");
+
+service
+  .command("visibility")
+  .argument("<name>", "service name, e.g. jellyfin or portainer")
+  .argument("[mode]", "local | public (omit to show current)")
+  .description("set or show a service's exposure (default local/LAN-only)")
+  .action(async (name: string, mode: string | undefined) => {
+    await serviceVisibilityCommand(name, mode, { config: program.opts().config });
+  });
+
+service
+  .command("list")
+  .description("show all services and their exposure")
+  .action(async () => {
+    await serviceListCommand({ config: program.opts().config });
   });
 
 program

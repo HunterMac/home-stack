@@ -17,6 +17,20 @@
 
   "installed": [],
 
+  "auth": {
+    "enabled": false,
+    "username": "admin",
+    "password": "",
+    "protectCore": true,
+    "apps": []
+  },
+
+  "public": {
+    "baseDomain": "",
+    "tlsEmail": ""
+  },
+  "visibility": {},
+
   "backup": {
     "repo": "/srv/docker/backups/restic",
     "passwordFile": "/srv/docker/config/restic/password",

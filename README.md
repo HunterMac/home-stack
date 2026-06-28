@@ -51,11 +51,31 @@ the Pi's primary IP. No router DNS config needed.
 
 ---
 
-## Quick start
+## Prerequisites: install Node ≥ 20 + git
 
-On the Pi (Raspberry Pi OS Lite 64-bit, with Node ≥ 20 + git):
+> **If you don't have `node`/`npm` yet** (`-bash: npm: command not found`),
+> install them first. Raspberry Pi OS Lite ships without Node.
+
+Recommended (current Node, arm64, lands in `/usr/bin` so systemd units can find it):
 
 ```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs git
+node -v   # expect v22.x
+npm -v
+```
+
+> Avoid `apt install npm` from Debian's repo — it pulls Node 18, but this project
+> needs ≥ 20. nvm works too, but installs Node under `~/.nvm`, which the root-run
+> systemd timers/services may not find — prefer NodeSource for a Pi appliance.
+
+## Quick start
+
+On the Pi (Raspberry Pi OS Lite 64-bit), in your **user's home dir** (not `/srv`
+and not as root):
+
+```bash
+cd ~
 git clone https://github.com/HunterMac/home-stack.git && cd home-stack
 npm install
 cp home-stack.config.example.json home-stack.config.json
@@ -77,7 +97,9 @@ sudo npm run home-stack -- install jellyfin      # install + bring up + .local r
 sudo npm run home-stack -- uninstall jellyfin    # remove container (keeps data)
 ```
 
-> Don't have Node yet? `sudo apt install -y nodejs npm git` (or use nvm).
+> Run `npm install` as your normal user (so `node_modules` isn't owned by root);
+> only `setup`/`install`/`uninstall` need `sudo`. Keep the repo in place after
+> setup — the systemd backup + mDNS units reference its path.
 
 After it finishes:
 
@@ -100,6 +122,8 @@ Open `https://portainer.local` (and `https://homeassistant.local`). With
 | `npm run home-stack -- list` | List the app catalog + install status |
 | `sudo npm run home-stack -- install <app...>` | Install catalog app(s) + converge |
 | `sudo npm run home-stack -- uninstall <app...>` | Remove app(s) (keeps data) |
+| `npm run home-stack -- service list` | Show each service's exposure (local/public) |
+| `sudo npm run home-stack -- service visibility <name> public\|local` | Set exposure |
 | `npm run status` | Show containers, service URLs, backup snapshots |
 | `npm run backup` | Run a Restic backup + retention now |
 | `npm run restore -- --list` | List snapshots |
@@ -131,6 +155,9 @@ Edit `home-stack.config.json` (copied from the `.example`). Key fields:
 "installed": ["homeassistant", "jellyfin"]
 ```
 
+- `auth` — optional shared basic-auth gate (see *Password protection* below).
+- `public` / `visibility` — public-domain exposure (see *Service visibility* below).
+
 ---
 
 ## The app catalog
@@ -159,6 +186,71 @@ Add one entry to the `CATALOG` map in `src/catalog.ts` — `name`, `upstreamPort
 a `compose(ctx)` builder, and optionally `dirs`, `seed`, `note`. The compose
 service, Caddy route, mDNS hostname and folders are all derived automatically.
 No other file needs changing.
+
+---
+
+## Service visibility (local vs public)
+
+Every service is **local by default**: reachable only on your LAN via
+`<name>.local` (mDNS) with Caddy's internal CA — **not routable from the
+internet**. You opt a service into public exposure explicitly:
+
+```bash
+npm run home-stack -- service list                       # show exposure of all
+sudo npm run home-stack -- service visibility jellyfin public
+sudo npm run home-stack -- service visibility jellyfin local    # back to LAN-only
+npm run home-stack -- service visibility jellyfin              # just show current
+```
+
+Public mode adds a second Caddy site on a **real domain**
+(`<name>.<public.baseDomain>`) with automatic **Let's Encrypt** TLS, while
+keeping the `.local` LAN block. First set the public domain + email:
+
+```json
+"public": { "baseDomain": "home.example.com", "tlsEmail": "you@example.com" }
+```
+
+> **Security — read before going public.** Caddy + TLS is not enough on its own.
+> Making a service public also requires, and exposes you to risk via:
+> 1. **Router port-forward** of `80` + `443` to the Pi (the script can't do this),
+>    or a tunnel (Cloudflare Tunnel / Tailscale Funnel) instead.
+> 2. **Public DNS** for `<name>.<baseDomain>` pointing at your public IP
+>    (use dynamic DNS if your IP isn't static).
+> 3. **Authentication.** Turn on `auth` and add the service to `auth.apps`
+>    unless it has its own strong login. **Never expose Portainer unprotected.**
+>    Don't expose Home Assistant via basic auth — use HA's own auth + the
+>    [HA docs on remote access](https://www.home-assistant.io/docs/configuration/remote/).
+
+Visibility is stored per service under `visibility` in the config and applied by
+regenerating the Caddyfile (Caddy is reloaded gracefully, no downtime).
+
+---
+
+## Password protection (shared basic auth)
+
+Optionally put a shared HTTP basic-auth gate in front of services at the **Caddy
+layer** (no per-container hacks). Enabled in the `auth` block:
+
+```json
+"auth": {
+  "enabled": true,
+  "username": "admin",
+  "password": "change-me",
+  "protectCore": true,
+  "apps": ["jellyfin"]
+}
+```
+
+- `protectCore` gates **Portainer** (it also has its own login → defense in depth).
+- `apps` lists installed apps to also gate. Anything not listed is left open.
+- Password is stored plaintext here (this file is gitignored). Caddy needs a
+  **bcrypt** hash, so setup derives one with `caddy hash-password` and caches it
+  under `config/caddy/.basicauth.*` (regenerated only when you change the
+  credential — no needless Caddy restarts).
+
+> **Don't gate Home Assistant.** Basic auth breaks the HA mobile app, API and
+> websockets. HA has strong built-in auth + tokens — leave it out of `apps`.
+> Same applies to any app you reach via a native app/API rather than a browser.
 
 ---
 
